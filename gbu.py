@@ -33,7 +33,7 @@ def scan():
 
 def recieveListener():
     global messageQueue, isConnected
-    while isConnected:
+    while isConnected.get():
         try:
             messageQueue.append(btSocket.recv(1024))
         except bluetooth.btcommon.BluetoothError as err:
@@ -46,18 +46,21 @@ def connectToDevice(selection):
     addr = device[0]
     port = 1
     btSocket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-    btSocket.connect((addr,port))
-    deviceName.set("Device name: " + device[1])
-    deviceMAC.set("Device MAC Address: " + device[0])
-    deviceClass.set("Device class: " + str(device[2]))
-    isConnected.set(True)
-    recieveThread.start() 
-    sendButton.state(['!disabled'])
-    disconnectButton.state(["!disabled"])
+    try:
+        btSocket.connect((addr,port))
+        deviceName.set("Device name: " + device[1])
+        deviceMAC.set("Device MAC Address: " + device[0])
+        deviceClass.set("Device class: " + str(device[2]))
+        isConnected.set(True)
+        recieveThread.start() 
+        sendButton.state(['!disabled'])
+        disconnectButton.state(["!disabled"])
+    except bluetooth.btcommon.BluetoothError as err:
+        messages.showerror(title="Connection Error", message="Failed to establish RFCOMM socket. \nInfo: " + str(err))
 
 def updateLog():
     for item in messageQueue:
-        writeToDataLog(bytes.fromhex(item.hex()))
+        writeToDataLog("Recieved message > " + item.hex())
         print(item.hex())
         messageQueue.remove(item)
     tk.after(100, updateLog)
@@ -93,6 +96,7 @@ def disconnectFromDevice(ask = True):
 
 def sendMessage():
     btSocket.send(sendInput.get())
+    writeToDataLog("Sent message > " + sendInput.get())
 
 def writeToDataLog(msg):
     numlines = int(dataLog.index('end - 1 line').split('.')[0])
@@ -137,8 +141,8 @@ devicesListbox = Listbox(devicesFrame, height = 10, listvariable=devicesVar)
 devicesListbox.grid(column=0, row=1, rowspan=10)
 devicesListbox.bind("<Double-1>", lambda e: connectToDevice(devicesListbox.curselection()))
 
-connectLoader = ttk.Progressbar(connectionTab, orient= "horizontal", length = 190, mode = "indeterminate")
-connectLoader.start(5)
+connectLoader = ttk.Progressbar(connectionTab, orient= "horizontal", length = 200, mode = "indeterminate")
+connectLoader.start(4)
 
 dataLog = Text(sendRecieveTab, state='disabled', width=70, height=24, wrap='none')
 dataLog.grid(column=0, row=0, pady=[5,0], columnspan=2)
